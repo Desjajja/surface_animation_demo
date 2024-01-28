@@ -3,8 +3,16 @@ package com.chenyangqi.surfaceview.frame_anim
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * @author ChenYangQi
@@ -59,23 +67,44 @@ class FrameAnimSurface @JvmOverloads constructor(
     override fun surfaceCreated(p0: SurfaceHolder) {
         mViewRect.set(0, 0, width, height)
         mIsDrawing = true
-        Thread {
-            while (mIsDrawing) {
-                for (resourceId in mResources) {
-                    val beginTime = System.currentTimeMillis()
-                    createBitmap(resourceId)
-                    draw()
-                    val userTime = System.currentTimeMillis() - beginTime
-                    if (userTime < mDuration) {
-                        Thread.sleep(mDuration - userTime)
+
+        findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+            findViewTreeLifecycleOwner()?.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    while (mIsDrawing) {
+                        for (resourceId in mResources) {
+                            val beginTime = System.currentTimeMillis()
+                            createBitmap(resourceId)
+                            draw()
+                            val userTime = System.currentTimeMillis() - beginTime
+                            if (userTime < mDuration) {
+                                delay(mDuration - userTime)
+                            }
+                        }
                     }
                 }
             }
-        }.start()
+        }
+//        Thread {
+//            while (mIsDrawing) {
+//                for (resourceId in mResources) {
+//                    val beginTime = System.currentTimeMillis()
+//                    createBitmap(resourceId)
+//                    draw()
+//                    val userTime = System.currentTimeMillis() - beginTime
+//                    if (userTime < mDuration) {
+//                        Thread.sleep(mDuration - userTime)
+//                    }
+//                }
+//            }
+//        }.start()
     }
+
 
     override fun surfaceDestroyed(p0: SurfaceHolder) {
         mIsDrawing = false
+        mSurfaceHolder.removeCallback(this)
+        mSurfaceHolder.surface.release()
     }
 
     private fun draw() {
